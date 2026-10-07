@@ -1,5 +1,6 @@
 // POST /api/kroger/match { items: [{ id, name }] }
-// Searches Kroger products for each item (top 3 at the saved store). When a
+// Searches Kroger products for each item at the saved store, ranks them by unit
+// price and returns the 3 cheapest per unit, pre-selecting the cheapest. When a
 // preference matches the item name (lib/preferences.mjs), its hint is added to
 // the search term and its pinned product is offered and pre-selected - fetched
 // by productId/UPC when it is not among the search results, or injected from the
@@ -9,6 +10,10 @@ import { protectedHandler } from "../lib/handler.mjs";
 import { getSettings } from "../lib/blobs.mjs";
 import { searchProducts, getProduct, cleanSearchTerm } from "../lib/kroger.mjs";
 import { loadPreferences, findPreference, buildHintedTerm } from "../lib/preferences.mjs";
+import { rankByUnitPrice } from "../lib/unit-price.mjs";
+
+const SEARCH_LIMIT = 10; // candidates fetched per item before ranking
+const SHOWN = 3;
 
 async function mapLimit(list, limit, fn) {
   const out = new Array(list.length);
@@ -47,22 +52,24 @@ export default protectedHandler(async (req) => {
     const pinned = pref?.product?.upc ? pref.product : null;
     let term = pref?.hint ? buildHintedTerm(it.name, pref.hint) : baseTerm;
     try {
-      let options = await searchProducts(term, settings.locationId, 3);
-      if (!options.length && term !== baseTerm) {
+      let found = await searchProducts(term, settings.locationId, SEARCH_LIMIT);
+      if (!found.length && term !== baseTerm) {
         // The hinted search found nothing - fall back to the plain item words.
         term = baseTerm;
-        options = await searchProducts(term, settings.locationId, 3);
+        found = await searchProducts(term, settings.locationId, SEARCH_LIMIT);
       }
+      const ranked = rankByUnitPrice(found);
+      if (ranked[0]?.unitPrice) ranked[0].cheapest = true;
+      let options = ranked.slice(0, SHOWN);
       if (pinned) {
-        const hit = options.find((o) => o.upc === pinned.upc);
-        if (hit) hit.pinned = true;
-        else {
-          const live = await getProduct(pinned.productId || pinned.upc, settings.locationId).catch(() => null);
-          const option = live
-            ? { ...live, pinned: true }
-            : { upc: pinned.upc, productId: pinned.productId, description: pinned.description || "Pinned product", brand: pinned.brand || "", size: pinned.size || "", price: null, pinned: true, snapshot: true };
-          options = [option, ...options].slice(0, 4);
-        }
+        // The preference wins over price: show the pinned product first and select it.
+        const hit = ranked.find((o) => o.upc === pinned.upc);
+        const option = hit
+          ? hit
+          : (await getProduct(pinned.productId || pinned.upc, settings.locationId).catch(() => null)) ||
+            { upc: pinned.upc, productId: pinned.productId, description: pinned.description || "Pinned product", brand: pinned.brand || "", size: pinned.size || "", price: null, snapshot: true };
+        option.pinned = true;
+        options = [option, ...options.filter((o) => o.upc !== option.upc)].slice(0, SHOWN + 1);
       }
       const selected = options.find((o) => o.pinned) || options[0] || null;
       return { itemId: it.id, name: it.name, term, options, selectedUpc: selected?.upc || null, preference: publicPreference(pref) };

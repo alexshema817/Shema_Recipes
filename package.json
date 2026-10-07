@@ -12,7 +12,8 @@
     "check": "node scripts/check-functions.mjs",
     "test:jsonld": "node scripts/test-jsonld.mjs",
     "test:prefs": "node scripts/test-preferences.mjs",
-    "icons": "node scripts/make-icons.mjs"
+    "icons": "node scripts/make-icons.mjs",
+    "test:unit-price": "node scripts/test-unit-price.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",

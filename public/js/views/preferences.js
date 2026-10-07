@@ -93,7 +93,7 @@ export async function render(container, ctx) {
       h(
         "div",
         { class: "option" },
-        h("span", { class: "desc" }, p.description, h("small", {}, [p.brand, p.size, p.price != null ? `$${Number(p.price).toFixed(2)}` : "", `UPC ${p.upc}`].filter(Boolean).join(" · "))),
+        h("span", { class: "desc" }, p.description, h("small", {}, [p.brand, p.size, p.price != null ? `$${Number(p.price).toFixed(2)}` : "", p.unitPriceLabel || "", `UPC ${p.upc}`].filter(Boolean).join(" · "))),
         h("button", { class: "btn small", type: "button", onclick: () => pin(p) }, "Pin"),
       );
 

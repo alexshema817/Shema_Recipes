@@ -1,6 +1,6 @@
-// POST /api/kroger/cart { items: [{ itemId, name, upc, quantity, description, size, brand }] }
-// Learns the ingredient-name -> product picks as "learned" preferences (never
-// overriding a manually pinned product), then PUT /v1/cart/add per item so we
+// POST /api/kroger/cart { items: [{ itemId, name, upc, quantity, description, size, brand, learn }] }
+// Learns picks the user changed from the default (cheapest/pinned) as "learned"
+// preferences (never overriding a manually pinned product), then PUT /v1/cart/add per item so we
 // can report success/failure individually. Checkout happens in the Kroger app.
 import { json, fail, readBody, methodNotAllowed } from "../lib/http.mjs";
 import { protectedHandler } from "../lib/handler.mjs";
@@ -15,7 +15,9 @@ export default protectedHandler(async (req) => {
 
   // Remember picks for next time.
   const prefs = await loadPreferences();
-  for (const it of items) applyLearnedPick(prefs, it);
+  // Accepting the default isn't a preference - learning it would freeze today's
+  // cheapest product and stop future unit-price ranking for that item.
+  for (const it of items) if (it.learn) applyLearnedPick(prefs, it);
   await savePreferences(prefs);
 
   const results = [];

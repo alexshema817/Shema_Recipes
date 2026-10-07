@@ -237,7 +237,8 @@ dialog.dlg::backdrop { background: rgba(0, 0, 0, 0.45); }
 .option input[type="radio"] { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--primary); flex: none; }
 .option .desc { flex: 1; }
 .option .desc small { display: block; color: var(--muted); }
-.option .price { font-weight: 600; white-space: nowrap; }
+.option .price { font-weight: 600; white-space: nowrap; text-align: right; }
+.option .price .unit-price { display: block; font-weight: 400; font-size: 0.8em; opacity: 0.75; }
 .count { width: 64px; min-height: 36px; padding: 4px 8px; margin: 0; text-align: center; }
 .match-pref { color: var(--primary); margin: -2px 0 6px; }
 

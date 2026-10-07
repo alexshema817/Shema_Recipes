@@ -142,7 +142,7 @@ export async function render(container, ctx) {
   function openMatchDialog(results) {
     const picks = new Map(); // itemId -> { upc, option, count }
     const body = h("div", {});
-    body.append(h("p", { class: "muted small" }, `Showing products at ${status.locationName || "your store"}. Pinned and previously chosen products are pre-selected; manage them on the Preferences tab.`));
+    body.append(h("p", { class: "muted small" }, `Showing products at ${status.locationName || "your store"}. Sorted by lowest unit price; the cheapest is pre-selected unless you have a preference (manage them on the Preferences tab). Choosing a different product teaches the app your preference.`));
     for (const r of results) {
       const name = `pick-${r.itemId}`;
       const count = h("input", { type: "number", class: "count", min: 1, max: 99, value: 1, "aria-label": "How many" });
@@ -168,8 +168,8 @@ export async function render(container, ctx) {
             "label",
             { class: "option" },
             radio,
-            h("span", { class: "desc" }, opt.description, h("small", {}, [opt.brand, opt.size, opt.pinned ? (opt.snapshot ? "pinned · price unavailable" : "pinned") : ""].filter(Boolean).join(" · "))),
-            h("span", { class: "price" }, opt.price != null ? `$${Number(opt.price).toFixed(2)}` : ""),
+            h("span", { class: "desc" }, opt.description, h("small", {}, [opt.brand, opt.size, opt.pinned ? (opt.snapshot ? "pinned · price unavailable" : "pinned") : "", opt.cheapest ? "lowest unit price" : ""].filter(Boolean).join(" · "))),
+            h("span", { class: "price" }, opt.price != null ? `$${Number(opt.price).toFixed(2)}` : "", opt.unitPriceLabel ? h("small", { class: "unit-price" }, opt.unitPriceLabel) : null),
           ),
         );
       }
@@ -190,7 +190,7 @@ export async function render(container, ctx) {
             for (const r of results) {
               const p = picks.get(r.itemId);
               if (!p) continue;
-              payload.push({ itemId: r.itemId, name: r.name, upc: p.upc, productId: p.option.productId || "", quantity: Number(p.count.value) || 1, description: p.option.description, size: p.option.size, brand: p.option.brand });
+              payload.push({ itemId: r.itemId, name: r.name, upc: p.upc, productId: p.option.productId || "", quantity: Number(p.count.value) || 1, description: p.option.description, size: p.option.size, brand: p.option.brand, learn: p.upc !== r.selectedUpc });
             }
             if (!payload.length) return toast("Pick at least one product", "error");
             if (!status.connected) {

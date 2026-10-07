@@ -1,6 +1,7 @@
 // Kroger Public API client: OAuth2 (authorization code + refresh, client
 // credentials), locations, products, cart. Tokens live in Netlify Blobs.
 import { KEYS, readJSON, writeJSON, remove } from "./blobs.mjs";
+import { unitPriceOf, unitPriceLabel } from "./unit-price.mjs";
 
 export const USER_SCOPES = "cart.basic:write product.compact profile.compact";
 export const CLIENT_SCOPES = "product.compact";
@@ -185,7 +186,7 @@ function mapProduct(p) {
   const price = item.price || {};
   const regular = price.regular ?? null;
   const promo = price.promo && price.promo > 0 ? price.promo : null;
-  return {
+  const out = {
     productId: p.productId,
     upc: p.upc,
     description: p.description || "",
@@ -196,6 +197,10 @@ function mapProduct(p) {
     promoPrice: promo,
     soldBy: item.soldBy || "",
   };
+  const up = unitPriceOf(out);
+  out.unitPrice = up;
+  out.unitPriceLabel = unitPriceLabel(up);
+  return out;
 }
 
 export async function searchProducts(term, locationId, limit = 3) {
