@@ -2,6 +2,21 @@
 // credentials), locations, products, cart. Tokens live in Netlify Blobs.
 import { KEYS, readJSON, writeJSON, remove } from "./blobs.mjs";
 import { unitPriceOf, unitPriceLabel } from "./unit-price.mjs";
+import { seal, open, isSealed } from "./secret-box.mjs";
+
+// Tokens are stored encrypted (lib/secret-box.mjs). A plaintext value written by
+// an older version is re-saved encrypted the first time it is read.
+async function readSealed(key) {
+  const raw = await readJSON(key, null);
+  if (!raw) return null;
+  if (isSealed(raw)) return open(raw); // null if tampered with or SESSION_SECRET changed
+  await writeJSON(key, seal(raw));
+  return raw;
+}
+
+async function writeSealed(key, value) {
+  await writeJSON(key, seal(value));
+}
 
 export const USER_SCOPES = "cart.basic:write product.compact profile.compact";
 export const CLIENT_SCOPES = "product.compact";
@@ -72,7 +87,7 @@ async function saveUserTokens(data, previous = null) {
     connectedAt: previous?.connectedAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
-  await writeJSON(KEYS.KROGER_TOKENS, tokens);
+  await writeSealed(KEYS.KROGER_TOKENS, tokens);
   return tokens;
 }
 
@@ -83,7 +98,7 @@ export async function exchangeCode(code) {
 }
 
 export async function getUserTokens() {
-  return readJSON(KEYS.KROGER_TOKENS, null);
+  return readSealed(KEYS.KROGER_TOKENS);
 }
 
 export async function disconnect() {
@@ -112,11 +127,11 @@ export async function getUserAccessToken() {
 
 /** App-level token (client credentials) for product/location search - no user login needed. */
 export async function getClientToken() {
-  const cached = await readJSON(KEYS.KROGER_CLIENT_TOKEN, null);
+  const cached = await readSealed(KEYS.KROGER_CLIENT_TOKEN);
   if (cached?.accessToken && cached.expiresAt > Date.now()) return cached.accessToken;
   const data = await tokenRequest({ grant_type: "client_credentials", scope: CLIENT_SCOPES });
   const tok = { accessToken: data.access_token, expiresAt: Date.now() + (Number(data.expires_in) || 1800) * 1000 - 60_000 };
-  await writeJSON(KEYS.KROGER_CLIENT_TOKEN, tok);
+  await writeSealed(KEYS.KROGER_CLIENT_TOKEN, tok);
   return tok.accessToken;
 }
 

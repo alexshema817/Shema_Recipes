@@ -2,6 +2,8 @@
 // reduction for the AI fallback, ingredient-line heuristics, and validation.
 // Pure Node (no DOM libraries) so it runs in Netlify Functions and in scripts.
 
+import { assertPublicUrl } from "./net-guard.mjs";
+
 export const BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36";
 
@@ -12,30 +14,23 @@ export const INGREDIENT_FIELDS = ["raw", "quantity", "unit", "item", "note"];
 // Fetch
 // ---------------------------------------------------------------------------
 
+const MAX_REDIRECTS = 5;
+
 export async function fetchPage(url, { timeoutMs = 15000, maxBytes = 3_000_000 } = {}) {
-  const u = new URL(url);
-  if (u.protocol !== "http:" && u.protocol !== "https:") throw new Error("Only http(s) URLs are supported");
+  let u = await assertPublicUrl(url);
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const res = await fetch(u, {
-      headers: {
-        "user-agent": BROWSER_UA,
-        accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-        "accept-language": "en-US,en;q=0.9",
-        "sec-ch-ua": '"Chromium";v="129", "Google Chrome";v="129", "Not=A?Brand";v="8"',
-        "sec-ch-ua-mobile": "?0",
-        "sec-ch-ua-platform": '"Windows"',
-        "sec-fetch-dest": "document",
-        "sec-fetch-mode": "navigate",
-        "sec-fetch-site": "none",
-        "sec-fetch-user": "?1",
-        "upgrade-insecure-requests": "1",
-        "cache-control": "max-age=0",
-      },
-      redirect: "follow",
-      signal: ctrl.signal,
-    });
+    // Redirects are followed by hand so every hop is checked against private addresses.
+    let res;
+    for (let hop = 0; ; hop++) {
+      res = await requestPage(u, ctrl.signal);
+      const location = res.status >= 300 && res.status < 400 ? res.headers.get("location") : null;
+      if (!location) break;
+      if (hop >= MAX_REDIRECTS) throw new Error("Too many redirects");
+      await res.body?.cancel().catch(() => {});
+      u = await assertPublicUrl(new URL(location, u));
+    }
     if (!res.ok) {
       const body = (await res.text().catch(() => "")).slice(0, 4000);
       const challenge = res.headers.get("cf-mitigated") === "challenge" || /just a moment|captcha|access denied|are you a human|verify you are|bot detection/i.test(body);
@@ -48,13 +43,34 @@ export async function fetchPage(url, { timeoutMs = 15000, maxBytes = 3_000_000 }
     if (type && !/html|xml|text/i.test(type)) throw new Error(`That URL is not an HTML page (${type.split(";")[0]})`);
     const buf = Buffer.from(await res.arrayBuffer());
     const html = buf.subarray(0, maxBytes).toString("utf8");
-    return { html, finalUrl: res.url || u.href };
+    return { html, finalUrl: u.href };
   } catch (err) {
     if (err.name === "AbortError") throw new Error("Timed out fetching the page");
     throw err;
   } finally {
     clearTimeout(timer);
   }
+}
+
+function requestPage(u, signal) {
+  return fetch(u, {
+    headers: {
+      "user-agent": BROWSER_UA,
+      accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+      "accept-language": "en-US,en;q=0.9",
+      "sec-ch-ua": '"Chromium";v="129", "Google Chrome";v="129", "Not=A?Brand";v="8"',
+      "sec-ch-ua-mobile": "?0",
+      "sec-ch-ua-platform": '"Windows"',
+      "sec-fetch-dest": "document",
+      "sec-fetch-mode": "navigate",
+      "sec-fetch-site": "none",
+      "sec-fetch-user": "?1",
+      "upgrade-insecure-requests": "1",
+      "cache-control": "max-age=0",
+    },
+    redirect: "manual",
+    signal,
+  });
 }
 
 // ---------------------------------------------------------------------------
