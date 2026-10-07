@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Sign in - Recipes & Grocery</title>
+  <meta name="theme-color" content="#2f6f4e" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/icons/icon-192.png" type="image/png" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body class="login-body">
+  <main class="login-card">
+    <img src="/icons/icon-192.png" alt="" width="72" height="72" class="login-logo" />
+    <h1>Recipes & Grocery</h1>
+    <p class="muted">Sign in to continue.</p>
+    <form id="login-form" autocomplete="on">
+      <label>Username
+        <input name="username" type="text" autocomplete="username" required autofocus />
+      </label>
+      <label>Password
+        <input name="password" type="password" autocomplete="current-password" required />
+      </label>
+      <p id="login-error" class="error" hidden></p>
+      <button type="submit" class="btn primary block" id="login-btn">Sign in</button>
+    </form>
+  </main>
+  <script>
+    const form = document.getElementById("login-form");
+    const errEl = document.getElementById("login-error");
+    const btn = document.getElementById("login-btn");
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errEl.hidden = true;
+      btn.disabled = true;
+      btn.textContent = "Signing in...";
+      try {
+        const fd = new FormData(form);
+        const res = await fetch("/api/login", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ username: fd.get("username"), password: fd.get("password") }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || "Sign in failed");
+        location.replace("/");
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.hidden = false;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Sign in";
+      }
+    });
+  </script>
+</body>
+</html>

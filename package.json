@@ -1,0 +1,20 @@
+{
+  "name": "kroger-recipe-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Single-user recipe library + grocery list app with Kroger cart integration, hosted on Netlify.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "netlify dev",
+    "check": "node scripts/check-functions.mjs",
+    "test:jsonld": "node scripts/test-jsonld.mjs",
+    "icons": "node scripts/make-icons.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
+    "@netlify/blobs": "^11.1.3"
+  }
+}
