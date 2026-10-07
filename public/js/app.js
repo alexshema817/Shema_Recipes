@@ -4,10 +4,11 @@ import { toast, extractUrl } from "./util.js";
 import * as library from "./views/library.js";
 import * as week from "./views/week.js";
 import * as grocery from "./views/grocery.js";
+import * as preferences from "./views/preferences.js";
 import * as settings from "./views/settings.js";
 
-const VIEWS = { library, week, grocery, settings };
-const TITLES = { library: "Library", week: "This Week", grocery: "Grocery List", settings: "Settings" };
+const VIEWS = { library, week, grocery, preferences, settings };
+const TITLES = { library: "Library", week: "This Week", grocery: "Grocery List", preferences: "Preferences", settings: "Settings" };
 
 const viewEl = document.getElementById("view");
 const titleEl = document.getElementById("page-title");

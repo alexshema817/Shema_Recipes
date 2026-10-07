@@ -180,28 +180,56 @@ export function cleanSearchTerm(name) {
   return term;
 }
 
+function mapProduct(p) {
+  const item = (p.items || [])[0] || {};
+  const price = item.price || {};
+  const regular = price.regular ?? null;
+  const promo = price.promo && price.promo > 0 ? price.promo : null;
+  return {
+    productId: p.productId,
+    upc: p.upc,
+    description: p.description || "",
+    brand: p.brand || "",
+    size: item.size || "",
+    price: promo ?? regular,
+    regularPrice: regular,
+    promoPrice: promo,
+    soldBy: item.soldBy || "",
+  };
+}
+
 export async function searchProducts(term, locationId, limit = 3) {
   const token = await getClientToken();
   const q = new URLSearchParams({ "filter.term": term, "filter.limit": String(limit) });
   if (locationId) q.set("filter.locationId", locationId);
   const data = await apiRequest(`/products?${q}`, { token });
-  return (data?.data || []).map((p) => {
-    const item = (p.items || [])[0] || {};
-    const price = item.price || {};
-    const regular = price.regular ?? null;
-    const promo = price.promo && price.promo > 0 ? price.promo : null;
-    return {
-      productId: p.productId,
-      upc: p.upc,
-      description: p.description || "",
-      brand: p.brand || "",
-      size: item.size || "",
-      price: promo ?? regular,
-      regularPrice: regular,
-      promoPrice: promo,
-      soldBy: item.soldBy || "",
-    };
-  });
+  return (data?.data || []).map(mapProduct);
+}
+
+/** Kroger productIds are 13 digits; a 12-digit UPC-A is the same code without the leading 0. */
+export function normalizeProductId(id) {
+  const digits = String(id || "").replace(/\D/g, "");
+  if (!digits) return "";
+  return digits.length === 12 ? "0" + digits : digits;
+}
+
+/**
+ * GET /v1/products/{id} (product.compact scope) for one product by productId/UPC,
+ * falling back to a term search on the digits. Returns null when nothing is found.
+ */
+export async function getProduct(id, locationId) {
+  const pid = normalizeProductId(id);
+  if (!/^\d{8,14}$/.test(pid)) return null;
+  const token = await getClientToken();
+  const loc = locationId ? `?${new URLSearchParams({ "filter.locationId": locationId })}` : "";
+  try {
+    const data = await apiRequest(`/products/${pid}${loc}`, { token });
+    if (data?.data?.productId) return mapProduct(data.data);
+  } catch (err) {
+    if (err.status && err.status !== 404 && err.status !== 400) throw err;
+  }
+  const found = await searchProducts(pid, locationId, 5).catch(() => []);
+  return found.find((p) => normalizeProductId(p.upc) === pid || normalizeProductId(p.productId) === pid) || null;
 }
 
 /** PUT /v1/cart/add with [{ upc, quantity, modality }]. Returns true on success (204). */

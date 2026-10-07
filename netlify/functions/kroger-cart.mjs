@@ -1,10 +1,11 @@
 // POST /api/kroger/cart { items: [{ itemId, name, upc, quantity, description, size, brand }] }
-// Saves the ingredient-name -> UPC picks, then PUT /v1/cart/add per item so we
+// Learns the ingredient-name -> product picks as "learned" preferences (never
+// overriding a manually pinned product), then PUT /v1/cart/add per item so we
 // can report success/failure individually. Checkout happens in the Kroger app.
 import { json, fail, readBody, methodNotAllowed } from "../lib/http.mjs";
 import { protectedHandler } from "../lib/handler.mjs";
-import { KEYS, readJSON, writeJSON } from "../lib/blobs.mjs";
-import { addToCart, normalizeName } from "../lib/kroger.mjs";
+import { addToCart } from "../lib/kroger.mjs";
+import { loadPreferences, savePreferences, applyLearnedPick } from "../lib/preferences.mjs";
 
 export default protectedHandler(async (req) => {
   if (req.method !== "POST") return methodNotAllowed(["POST"]);
@@ -13,13 +14,9 @@ export default protectedHandler(async (req) => {
   if (!items.length) return fail("No items with a selected Kroger product");
 
   // Remember picks for next time.
-  const productMap = (await readJSON(KEYS.KROGER_PRODUCT_MAP, null)) || {};
-  for (const it of items) {
-    const key = normalizeName(it.name);
-    if (!key) continue;
-    productMap[key] = { upc: String(it.upc), description: String(it.description || "").slice(0, 160), size: String(it.size || "").slice(0, 60), brand: String(it.brand || "").slice(0, 60), savedAt: new Date().toISOString() };
-  }
-  await writeJSON(KEYS.KROGER_PRODUCT_MAP, productMap);
+  const prefs = await loadPreferences();
+  for (const it of items) applyLearnedPick(prefs, it);
+  await savePreferences(prefs);
 
   const results = [];
   for (const it of items) {

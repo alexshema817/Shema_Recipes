@@ -108,8 +108,18 @@ Checkout always happens in the Kroger app or on kroger.com.
   staples, and saves `grocery-list`.
 - Both AI operations run as background functions (15 min limit) because a
   synchronous function times out after ~10-26 s.
+- The Preferences tab (`/api/preferences`, blob `preferences`) stores, per
+  ingredient term, a pinned Kroger product and/or a brand/keyword hint. Matching
+  (`/api/kroger/match`) applies the most specific preference whose words appear
+  as a whole-word phrase in the item name ("milk" matches "2% milk", not
+  "buttermilk"; "coconut milk" beats "milk"), adds the hint to the search term
+  and pre-selects the pinned product, fetching it by productId when it is not in
+  the top results. Picks sent to the cart are learned automatically (source
+  `learned`) without overriding manually pinned products. The legacy
+  `kroger-product-map` blob is migrated into `preferences` on first read.
+  `npm run test:prefs` exercises the matcher.
 - Blobs keys: `recipes/{id}`, `recipes-index`, `week`, `grocery-list`,
-  `settings`, `kroger-tokens`, `kroger-client-token`, `kroger-product-map`,
+  `settings`, `kroger-tokens`, `kroger-client-token`, `preferences`,
   `login-attempts`, `jobs/{id}`.
 
 ## Auth

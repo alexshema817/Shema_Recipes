@@ -142,11 +142,18 @@ export async function render(container, ctx) {
   function openMatchDialog(results) {
     const picks = new Map(); // itemId -> { upc, option, count }
     const body = h("div", {});
-    body.append(h("p", { class: "muted small" }, `Showing products at ${status.locationName || "your store"}. Items you matched before are pre-selected.`));
+    body.append(h("p", { class: "muted small" }, `Showing products at ${status.locationName || "your store"}. Pinned and previously chosen products are pre-selected; manage them on the Preferences tab.`));
     for (const r of results) {
       const name = `pick-${r.itemId}`;
       const count = h("input", { type: "number", class: "count", min: 1, max: 99, value: 1, "aria-label": "How many" });
-      const groupEl = h("div", { class: "match-item" }, h("div", { class: "match-name" }, h("span", {}, r.name, r.remembered ? h("span", { class: "chip", style: { marginLeft: "6px" } }, "remembered") : null), h("span", { class: "row" }, h("span", { class: "muted small" }, "Qty"), count)));
+      const groupEl = h("div", { class: "match-item" }, h("div", { class: "match-name" }, h("span", {}, r.name), h("span", { class: "row" }, h("span", { class: "muted small" }, "Qty"), count)));
+      if (r.preference) {
+        const p = r.preference;
+        const parts = [];
+        if (p.product) parts.push(`Preference: ${p.term} → ${[p.product.brand, p.product.description, p.product.size].filter(Boolean).join(" ") || `UPC ${p.product.upc}`}`);
+        if (p.hint) parts.push(`Hint: ${p.hint}`);
+        groupEl.append(h("p", { class: "match-pref small" }, parts.join(" · "), p.source === "learned" ? h("span", { class: "chip neutral", style: { marginLeft: "6px" } }, "learned") : null));
+      }
       if (r.error) groupEl.append(h("p", { class: "error small" }, r.error));
       if (!r.options.length && !r.error) groupEl.append(h("p", { class: "muted small" }, `No products found for "${r.term}".`));
       const setPick = (opt) => {
@@ -161,7 +168,7 @@ export async function render(container, ctx) {
             "label",
             { class: "option" },
             radio,
-            h("span", { class: "desc" }, opt.description, h("small", {}, [opt.brand, opt.size].filter(Boolean).join(" · ") || (opt.remembered ? "previously chosen" : ""))),
+            h("span", { class: "desc" }, opt.description, h("small", {}, [opt.brand, opt.size, opt.pinned ? (opt.snapshot ? "pinned · price unavailable" : "pinned") : ""].filter(Boolean).join(" · "))),
             h("span", { class: "price" }, opt.price != null ? `$${Number(opt.price).toFixed(2)}` : ""),
           ),
         );
@@ -183,7 +190,7 @@ export async function render(container, ctx) {
             for (const r of results) {
               const p = picks.get(r.itemId);
               if (!p) continue;
-              payload.push({ itemId: r.itemId, name: r.name, upc: p.upc, quantity: Number(p.count.value) || 1, description: p.option.description, size: p.option.size, brand: p.option.brand });
+              payload.push({ itemId: r.itemId, name: r.name, upc: p.upc, productId: p.option.productId || "", quantity: Number(p.count.value) || 1, description: p.option.description, size: p.option.size, brand: p.option.brand });
             }
             if (!payload.length) return toast("Pick at least one product", "error");
             if (!status.connected) {

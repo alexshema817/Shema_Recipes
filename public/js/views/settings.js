@@ -1,13 +1,13 @@
-// Settings: pantry staples, Kroger store + connection, remembered products, sign out.
+// Settings: pantry staples, Kroger store + connection, product preferences summary, sign out.
 import { api } from "../api.js";
 import { h, toast, confirmDialog } from "../util.js";
 import { connectKroger, chooseStoreDialog } from "./kroger-ui.js";
 
 export async function render(container, ctx) {
-  const [{ settings }, kroger, productMap] = await Promise.all([
+  const [{ settings }, kroger, prefData] = await Promise.all([
     api("/api/settings"),
     api("/api/kroger/status").catch((e) => ({ connected: false, error: e.message })),
-    api("/api/kroger/product-map").catch(() => ({ count: 0 })),
+    api("/api/preferences").catch(() => ({ preferences: [] })),
   ]);
   if (!ctx.isCurrent()) return;
   let status = kroger;
@@ -64,19 +64,32 @@ export async function render(container, ctx) {
   };
   drawKroger();
 
-  // ---- remembered products
-  const countEl = h("span", {}, String(productMap.count || 0));
-  const mapCard = h(
+  // ---- product preferences (managed on the Preferences tab)
+  let prefList = prefData.preferences || [];
+  const countEl = h("span", {});
+  const learnedBtn = h("button", { class: "btn danger", onclick: async () => {
+    if (!(await confirmDialog("Forget all automatically learned product picks? Preferences you added yourself are kept.", { okLabel: "Forget learned", danger: true }))) return;
+    try {
+      const res = await api("/api/preferences?source=learned", { method: "DELETE" });
+      prefList = res.preferences;
+      drawCount();
+      toast("Learned picks forgotten");
+    } catch (err) {
+      toast(err.message, "error");
+    }
+  } }, "Forget learned picks");
+  const drawCount = () => {
+    const learned = prefList.filter((p) => p.source === "learned").length;
+    countEl.textContent = `${prefList.length} preference${prefList.length === 1 ? "" : "s"} (${learned} learned from cart picks, ${prefList.length - learned} added by you)`;
+    learnedBtn.disabled = !learned;
+  };
+  drawCount();
+  const prefCard = h(
     "div",
     { class: "card" },
-    h("h3", {}, "Remembered Kroger products"),
-    h("p", { class: "muted small" }, "When you pick a product for an ingredient, the choice is remembered so it is pre-selected next time. ", h("b", {}, countEl), " remembered."),
-    h("button", { class: "btn danger", onclick: async () => {
-      if (!(await confirmDialog("Forget all remembered product picks?", { okLabel: "Forget all", danger: true }))) return;
-      await api("/api/kroger/product-map", { method: "DELETE" });
-      countEl.textContent = "0";
-      toast("Cleared");
-    } }, "Forget all picks"),
+    h("h3", {}, "Kroger product preferences"),
+    h("p", { class: "muted small" }, "Pin your preferred products or add brand hints per ingredient on the Preferences tab. Products you send to the cart are learned automatically and pre-selected next time. ", h("b", {}, countEl)),
+    h("div", { class: "row" }, h("button", { class: "btn", onclick: () => ctx.navigate("preferences") }, "Manage preferences"), learnedBtn),
   );
 
   // ---- account
@@ -91,5 +104,5 @@ export async function render(container, ctx) {
     } }, "Sign out"),
   );
 
-  container.append(staplesCard, krogerCard, mapCard, accountCard);
+  container.append(staplesCard, krogerCard, prefCard, accountCard);
 }

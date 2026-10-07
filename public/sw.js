@@ -1,6 +1,6 @@
 // Service worker: caches the app shell so the PWA installs and opens offline.
 // API calls (/api/*, /.netlify/*) are never intercepted.
-const CACHE = "recipes-shell-v1";
+const CACHE = "recipes-shell-v2";
 const SHELL = [
   "/",
   "/index.html",
@@ -14,6 +14,7 @@ const SHELL = [
   "/js/views/week.js",
   "/js/views/grocery.js",
   "/js/views/settings.js",
+  "/js/views/preferences.js",
   "/js/views/kroger-ui.js",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
