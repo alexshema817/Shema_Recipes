@@ -30,7 +30,7 @@ async function mapLimit(list, limit, fn) {
 
 function publicPreference(pref) {
   if (!pref) return null;
-  const out = { term: pref.term, source: pref.source || "learned" };
+  const out = { term: pref.term };
   if (pref.hint) out.hint = pref.hint;
   if (pref.product?.upc) out.product = { upc: pref.product.upc, description: pref.product.description || "", brand: pref.product.brand || "", size: pref.product.size || "" };
   return out;

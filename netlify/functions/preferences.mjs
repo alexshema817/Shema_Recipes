@@ -2,7 +2,6 @@
 //   GET    /api/preferences                  -> { preferences: [...], count }
 //   PUT    /api/preferences { term, hint?, product?, originalTerm? } -> upsert one (source "manual")
 //   DELETE /api/preferences?term=milk        -> delete one
-//   DELETE /api/preferences?source=learned   -> delete all auto-learned picks
 import { json, fail, readBody, methodNotAllowed } from "../lib/http.mjs";
 import { protectedHandler } from "../lib/handler.mjs";
 import { normalizeName } from "../lib/kroger.mjs";
@@ -34,10 +33,8 @@ export default protectedHandler(async (req) => {
     if (term) {
       if (!prefs[term]) return fail("No preference with that term", 404);
       delete prefs[term];
-    } else if (params.get("source") === "learned") {
-      for (const [k, p] of Object.entries(prefs)) if (p.source === "learned") delete prefs[k];
     } else {
-      return fail("Specify ?term=... or ?source=learned");
+      return fail("Specify ?term=...");
     }
     await savePreferences(prefs);
     return json({ ok: true, preferences: sortedPreferences(prefs), count: Object.keys(prefs).length });

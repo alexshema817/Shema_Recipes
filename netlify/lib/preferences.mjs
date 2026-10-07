@@ -2,13 +2,12 @@
 //
 // Stored in Blobs under `preferences` as { [term]: Preference } where
 //   Preference = { term, product?: { upc, productId?, description, brand, size, price? },
-//                  hint?: string, source: "manual" | "learned", updatedAt }
-// `term` is always normalizeName()-d. Picks the user made in the match dialog are
-// learned automatically (source "learned"); the Preferences tab creates/edits
-// "manual" ones. The legacy `kroger-product-map` blob is migrated on first read.
+//                  hint?: string, source: "manual", updatedAt }
+// `term` is always normalizeName()-d. Preferences are only ever created on the
+// Preferences tab; items without one are matched by lowest unit price.
 //
 // The matching functions are pure (see scripts/test-preferences.mjs).
-import { KEYS, readJSON, writeJSON, remove } from "./blobs.mjs";
+import { KEYS, readJSON, writeJSON } from "./blobs.mjs";
 import { normalizeName, cleanSearchTerm } from "./kroger.mjs";
 
 export const LIMITS = { termMin: 2, termMax: 60, hint: 80, description: 160, brand: 60, size: 60, productId: 20, maxWords: 8 };
@@ -127,27 +126,6 @@ export function validatePreference(body) {
   return { ok: true, preference };
 }
 
-/**
- * Records a cart pick under the item's normalized name. Never replaces the pinned
- * product of a manual preference; otherwise sets/updates a learned product.
- * Mutates and returns `prefs`.
- */
-export function applyLearnedPick(prefs, item, now = new Date().toISOString()) {
-  const term = normalizeName(item?.name);
-  const product = cleanProduct(item);
-  if (!term || term.length > LIMITS.termMax || !product) return prefs;
-  // The pick just confirmed the product an existing preference already supplies
-  // (e.g. "whole milk" via the "milk" preference): learning a separate exact-name
-  // copy would shadow that preference if the user later changes it.
-  const matched = findPreference(prefs, term)?.preference;
-  if (matched?.product?.upc === product.upc) return prefs;
-  const existing = prefs[term];
-  if (existing?.source === "manual" && existing.product) return prefs;
-  delete product.price; // learned picks keep no price snapshot
-  prefs[term] = { ...(existing || {}), term, product, source: existing?.source === "manual" ? "manual" : "learned", updatedAt: now };
-  return prefs;
-}
-
 /** Alphabetical list form used by the API. */
 export function sortedPreferences(prefs) {
   return Object.values(prefs || {}).sort((a, b) => a.term.localeCompare(b.term));
@@ -157,26 +135,10 @@ export function sortedPreferences(prefs) {
 // Storage
 // ---------------------------------------------------------------------------
 
-function fromLegacyMap(map) {
-  const prefs = {};
-  for (const [name, v] of Object.entries(map || {})) {
-    const term = normalizeName(name);
-    const product = cleanProduct(v);
-    if (!term || term.length > LIMITS.termMax || !product) continue;
-    prefs[term] = { term, product, source: "learned", updatedAt: v.savedAt || new Date().toISOString() };
-  }
-  return prefs;
-}
-
-/** Reads all preferences, migrating the legacy kroger-product-map blob the first time. */
+/** Reads all preferences. */
 export async function loadPreferences() {
   const prefs = await readJSON(KEYS.PREFERENCES, null);
-  if (prefs && typeof prefs === "object") return prefs;
-  const legacy = await readJSON(KEYS.KROGER_PRODUCT_MAP, null);
-  const migrated = fromLegacyMap(legacy);
-  await writeJSON(KEYS.PREFERENCES, migrated);
-  if (legacy) await remove(KEYS.KROGER_PRODUCT_MAP).catch(() => {});
-  return migrated;
+  return prefs && typeof prefs === "object" ? prefs : {};
 }
 
 export async function savePreferences(prefs) {

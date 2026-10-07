@@ -1,6 +1,6 @@
 // Unit tests for the preference matcher (netlify/lib/preferences.mjs).
 // Run: npm run test:prefs
-import { singular, termMatchesName, findPreference, buildHintedTerm, validatePreference, applyLearnedPick } from "../netlify/lib/preferences.mjs";
+import { singular, termMatchesName, findPreference, buildHintedTerm, validatePreference } from "../netlify/lib/preferences.mjs";
 
 let passed = 0;
 let failed = 0;
@@ -81,26 +81,6 @@ check("product needs a UPC", validatePreference({ term: "milk", product: { descr
 {
   const v = validatePreference({ term: "  Coconut  Milk! ", hint: "  Thai   Kitchen ", product: { upc: "0001111041701", description: "d".repeat(200), brand: "b", size: "s", price: "3.499", productId: "0001111041701" } });
   check("valid upsert is normalized and limited", v.ok && { term: v.preference.term, hint: v.preference.hint, desc: v.preference.product.description.length, price: v.preference.product.price, source: v.preference.source }, { term: "coconut milk", hint: "Thai Kitchen", desc: 160, price: 3.5, source: "manual" });
-}
-
-// --- learning picks
-console.log("\n# learned picks");
-{
-  const store = { milk: pref("milk", { product: { upc: "0001111041700", description: "Kroger 2% Milk" } }), butter: pref("butter", { hint: "Kerrygold" }) };
-  applyLearnedPick(store, { name: "Milk", upc: "0009999999999", description: "Other Milk" }, "2026-02-02T00:00:00.000Z");
-  check("manual pinned product is not overwritten", store.milk.product.upc, "0001111041700");
-  applyLearnedPick(store, { name: "butter", upc: "0008888888888", description: "Kerrygold Butter", brand: "Kerrygold", size: "8 oz" }, "2026-02-02T00:00:00.000Z");
-  check("manual hint-only preference gains the picked product and keeps its hint", { upc: store.butter.product.upc, hint: store.butter.hint, source: store.butter.source }, { upc: "0008888888888", hint: "Kerrygold", source: "manual" });
-  applyLearnedPick(store, { name: "Chicken thighs", upc: "0007777777777", description: "Chicken Thighs", productId: "0007777777777", price: 5 }, "2026-02-02T00:00:00.000Z");
-  check("new pick is learned under the normalized name without a price", store["chicken thighs"], { term: "chicken thighs", product: { upc: "0007777777777", description: "Chicken Thighs", brand: "", size: "", productId: "0007777777777" }, source: "learned", updatedAt: "2026-02-02T00:00:00.000Z" });
-  applyLearnedPick(store, { name: "chicken thighs", upc: "0006666666666", description: "Different Thighs" }, "2026-03-03T00:00:00.000Z");
-  check("learned pick is replaced by a newer pick", store["chicken thighs"].product.upc, "0006666666666");
-  applyLearnedPick(store, { name: "bad", upc: "123" }, "2026-03-03T00:00:00.000Z");
-  check("invalid UPC is ignored", "bad" in store, false);
-  applyLearnedPick(store, { name: "Whole milk", upc: "0001111041700", description: "Kroger 2% Milk" }, "2026-03-03T00:00:00.000Z");
-  check("pick that matches the general preference's product is not copied", "whole milk" in store, false);
-  applyLearnedPick(store, { name: "Whole milk", upc: "0005555555555", description: "Other Whole Milk" }, "2026-03-03T00:00:00.000Z");
-  check("pick that differs from the general preference is learned", store["whole milk"]?.product.upc, "0005555555555");
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

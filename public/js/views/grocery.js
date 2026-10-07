@@ -142,7 +142,7 @@ export async function render(container, ctx) {
   function openMatchDialog(results) {
     const picks = new Map(); // itemId -> { upc, option, count }
     const body = h("div", {});
-    body.append(h("p", { class: "muted small" }, `Showing products at ${status.locationName || "your store"}. Sorted by lowest unit price; the cheapest is pre-selected unless you have a preference (manage them on the Preferences tab). Choosing a different product teaches the app your preference.`));
+    body.append(h("p", { class: "muted small" }, `Showing products at ${status.locationName || "your store"}. Sorted by lowest unit price; the cheapest is pre-selected unless you've set a preference on the Preferences tab.`));
     for (const r of results) {
       const name = `pick-${r.itemId}`;
       const count = h("input", { type: "number", class: "count", min: 1, max: 99, value: 1, "aria-label": "How many" });
@@ -152,7 +152,7 @@ export async function render(container, ctx) {
         const parts = [];
         if (p.product) parts.push(`Preference: ${p.term} → ${[p.product.brand, p.product.description, p.product.size].filter(Boolean).join(" ") || `UPC ${p.product.upc}`}`);
         if (p.hint) parts.push(`Hint: ${p.hint}`);
-        groupEl.append(h("p", { class: "match-pref small" }, parts.join(" · "), p.source === "learned" ? h("span", { class: "chip neutral", style: { marginLeft: "6px" } }, "learned") : null));
+        groupEl.append(h("p", { class: "match-pref small" }, parts.join(" · ")));
       }
       if (r.error) groupEl.append(h("p", { class: "error small" }, r.error));
       if (!r.options.length && !r.error) groupEl.append(h("p", { class: "muted small" }, `No products found for "${r.term}".`));
@@ -190,11 +190,11 @@ export async function render(container, ctx) {
             for (const r of results) {
               const p = picks.get(r.itemId);
               if (!p) continue;
-              payload.push({ itemId: r.itemId, name: r.name, upc: p.upc, productId: p.option.productId || "", quantity: Number(p.count.value) || 1, description: p.option.description, size: p.option.size, brand: p.option.brand, learn: p.upc !== r.selectedUpc });
+              payload.push({ itemId: r.itemId, name: r.name, upc: p.upc, productId: p.option.productId || "", quantity: Number(p.count.value) || 1, description: p.option.description, size: p.option.size, brand: p.option.brand });
             }
             if (!payload.length) return toast("Pick at least one product", "error");
             if (!status.connected) {
-              const ok = await confirmDialog("Your Kroger account is not connected yet. Connect now? (Your picks will be remembered, but you will need to match again afterwards.)", { okLabel: "Connect Kroger", title: "Connect Kroger" });
+              const ok = await confirmDialog("Your Kroger account is not connected yet. Connect now? (You will need to match again afterwards.)", { okLabel: "Connect Kroger", title: "Connect Kroger" });
               if (ok) connectKroger();
               return;
             }

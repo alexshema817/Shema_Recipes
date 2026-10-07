@@ -1,24 +1,15 @@
-// POST /api/kroger/cart { items: [{ itemId, name, upc, quantity, description, size, brand, learn }] }
-// Learns picks the user changed from the default (cheapest/pinned) as "learned"
-// preferences (never overriding a manually pinned product), then PUT /v1/cart/add per item so we
+// POST /api/kroger/cart { items: [{ itemId, name, upc, quantity, description, size, brand }] }
+// PUT /v1/cart/add per item so we
 // can report success/failure individually. Checkout happens in the Kroger app.
 import { json, fail, readBody, methodNotAllowed } from "../lib/http.mjs";
 import { protectedHandler } from "../lib/handler.mjs";
 import { addToCart } from "../lib/kroger.mjs";
-import { loadPreferences, savePreferences, applyLearnedPick } from "../lib/preferences.mjs";
 
 export default protectedHandler(async (req) => {
   if (req.method !== "POST") return methodNotAllowed(["POST"]);
   const body = await readBody(req);
   const items = Array.isArray(body?.items) ? body.items.filter((i) => i && /^\d{8,14}$/.test(String(i.upc || ""))).slice(0, 100) : [];
   if (!items.length) return fail("No items with a selected Kroger product");
-
-  // Remember picks for next time.
-  const prefs = await loadPreferences();
-  // Accepting the default isn't a preference - learning it would freeze today's
-  // cheapest product and stop future unit-price ranking for that item.
-  for (const it of items) if (it.learn) applyLearnedPick(prefs, it);
-  await savePreferences(prefs);
 
   const results = [];
   for (const it of items) {

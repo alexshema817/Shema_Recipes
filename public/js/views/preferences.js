@@ -1,5 +1,4 @@
 // Preferences: ingredient term -> pinned Kroger product and/or brand/keyword hint.
-// Learned picks (from "Send to Kroger Cart") are listed here too and can be edited or deleted.
 import { api } from "../api.js";
 import { h, svgIcon, ICONS, toast, openDialog, confirmDialog } from "../util.js";
 
@@ -23,7 +22,7 @@ export async function render(container, ctx) {
   const draw = () => {
     listHost.replaceChildren();
     if (!prefs.length) {
-      listHost.append(h("div", { class: "empty" }, h("p", {}, "No preferences yet."), h("p", { class: "small" }, "Pin your usual milk, eggs or butter, or add a brand hint. Products you send to the cart are remembered here automatically."), h("button", { class: "btn primary", onclick: () => openEditor(null) }, svgIcon(ICONS.plus, 18), "Add preference")));
+      listHost.append(h("div", { class: "empty" }, h("p", {}, "No preferences yet."), h("p", { class: "small" }, "Pin your usual milk, eggs or butter, or add a brand hint. Items without a preference are matched to the lowest unit price."), h("button", { class: "btn primary", onclick: () => openEditor(null) }, svgIcon(ICONS.plus, 18), "Add preference")));
       return;
     }
     const ul = h("ul", { class: "list card", style: { padding: "4px 14px" } });
@@ -35,7 +34,7 @@ export async function render(container, ctx) {
           h(
             "div",
             { class: "name", onclick: () => openEditor(p) },
-            h("span", {}, p.term, p.source === "learned" ? h("span", { class: "chip neutral", style: { marginLeft: "6px" } }, "learned") : null),
+            h("span", {}, p.term),
             p.product ? h("small", {}, `Pinned: ${productLine(p.product) || `UPC ${p.product.upc}`}${priceText(p.product) ? ` · ${priceText(p.product)}` : ""}`) : null,
             p.hint ? h("small", {}, `Hint: ${p.hint}`) : null,
           ),

@@ -11,7 +11,6 @@ export const KEYS = {
   KROGER_TOKENS: "kroger-tokens",
   KROGER_CLIENT_TOKEN: "kroger-client-token",
   PREFERENCES: "preferences",
-  KROGER_PRODUCT_MAP: "kroger-product-map", // legacy; migrated into `preferences` on first read (lib/preferences.mjs)
   LOGIN_ATTEMPTS: "login-attempts",
   recipe: (id) => `recipes/${id}`,
   job: (id) => `jobs/${id}`,

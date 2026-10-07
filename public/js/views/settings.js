@@ -67,29 +67,16 @@ export async function render(container, ctx) {
   // ---- product preferences (managed on the Preferences tab)
   let prefList = prefData.preferences || [];
   const countEl = h("span", {});
-  const learnedBtn = h("button", { class: "btn danger", onclick: async () => {
-    if (!(await confirmDialog("Forget all automatically learned product picks? Preferences you added yourself are kept.", { okLabel: "Forget learned", danger: true }))) return;
-    try {
-      const res = await api("/api/preferences?source=learned", { method: "DELETE" });
-      prefList = res.preferences;
-      drawCount();
-      toast("Learned picks forgotten");
-    } catch (err) {
-      toast(err.message, "error");
-    }
-  } }, "Forget learned picks");
   const drawCount = () => {
-    const learned = prefList.filter((p) => p.source === "learned").length;
-    countEl.textContent = `${prefList.length} preference${prefList.length === 1 ? "" : "s"} (${learned} learned from cart picks, ${prefList.length - learned} added by you)`;
-    learnedBtn.disabled = !learned;
+    countEl.textContent = `${prefList.length} preference${prefList.length === 1 ? "" : "s"}`;
   };
   drawCount();
   const prefCard = h(
     "div",
     { class: "card" },
     h("h3", {}, "Kroger product preferences"),
-    h("p", { class: "muted small" }, "Pin your preferred products or add brand hints per ingredient on the Preferences tab. Products you send to the cart are learned automatically and pre-selected next time. ", h("b", {}, countEl)),
-    h("div", { class: "row" }, h("button", { class: "btn", onclick: () => ctx.navigate("preferences") }, "Manage preferences"), learnedBtn),
+    h("p", { class: "muted small" }, "Pin your preferred products or add brand hints per ingredient on the Preferences tab. Everything else is matched to the lowest unit price. ", h("b", {}, countEl)),
+    h("div", { class: "row" }, h("button", { class: "btn", onclick: () => ctx.navigate("preferences") }, "Manage preferences")),
   );
 
   // ---- account

@@ -114,9 +114,8 @@ Checkout always happens in the Kroger app or on kroger.com.
   as a whole-word phrase in the item name ("milk" matches "2% milk", not
   "buttermilk"; "coconut milk" beats "milk"), adds the hint to the search term
   and pre-selects the pinned product, fetching it by productId when it is not in
-  the top results. Picks sent to the cart are learned automatically (source
-  `learned`) without overriding manually pinned products. The legacy
-  `kroger-product-map` blob is migrated into `preferences` on first read.
+  the top results. Preferences are only created on the Preferences tab; every
+  other item is matched by lowest unit price (`npm run test:unit-price`).
   `npm run test:prefs` exercises the matcher.
 - Blobs keys: `recipes/{id}`, `recipes-index`, `week`, `grocery-list`,
   `settings`, `kroger-tokens`, `kroger-client-token`, `preferences`,
