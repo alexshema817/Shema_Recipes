@@ -63,11 +63,11 @@ check("resets on a new day", nextUsage({ day: "2026-10-07", count: 30 }, "2026-1
 check("limit 0 blocks everything", nextUsage(null, "2026-10-07", 0).allowed, false);
 check("day uses US Eastern (01:00 UTC is still the previous day)", dayKey(new Date("2026-10-08T01:00:00Z")), "2026-10-07");
 delete process.env.AI_DAILY_LIMIT;
-check("default limit is 30", dailyLimit(), 30);
-process.env.AI_DAILY_LIMIT = "10";
-check("AI_DAILY_LIMIT overrides it", dailyLimit(), 10);
+check("default limit is 10", dailyLimit(), 10);
+process.env.AI_DAILY_LIMIT = "25";
+check("AI_DAILY_LIMIT overrides it", dailyLimit(), 25);
 process.env.AI_DAILY_LIMIT = "abc";
-check("invalid AI_DAILY_LIMIT falls back to 30", dailyLimit(), 30);
+check("invalid AI_DAILY_LIMIT falls back to 10", dailyLimit(), 10);
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

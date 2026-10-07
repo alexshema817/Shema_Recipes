@@ -3,7 +3,7 @@
 // Override the limit with AI_DAILY_LIMIT; 0 disables AI calls entirely.
 import { KEYS, readJSON, writeJSON } from "./blobs.mjs";
 
-export const DEFAULT_DAILY_LIMIT = 30;
+export const DEFAULT_DAILY_LIMIT = 10;
 const TIME_ZONE = "America/New_York";
 
 export function dailyLimit() {
