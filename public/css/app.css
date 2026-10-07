@@ -247,6 +247,13 @@ dialog.dlg::backdrop { background: rgba(0, 0, 0, 0.45); }
 .pinned-box svg { width: 16px; height: 16px; vertical-align: -3px; }
 .option .btn { flex: none; }
 
+/* Importer card (Settings) */
+textarea.code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.75rem; min-height: 72px; margin-top: 10px; word-break: break-all; }
+details.help { margin-top: 10px; border-top: 1px solid var(--border); padding-top: 8px; font-size: 0.9rem; }
+details.help summary { cursor: pointer; font-weight: 600; padding: 4px 0; }
+details.help ol { margin: 6px 0 4px; padding-left: 20px; }
+details.help li { margin-bottom: 4px; }
+
 /* Login */
 .login-body { padding: 24px 16px; display: flex; align-items: center; justify-content: center; min-height: 100dvh; }
 .login-card { width: 100%; max-width: 380px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; box-shadow: var(--shadow); text-align: center; }

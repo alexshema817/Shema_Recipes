@@ -1,6 +1,7 @@
-// App shell: session check, hash router, tab bar, share-target + OAuth return handling.
+// App shell: session check, hash router, tab bar, share-target + importer + OAuth return handling.
 import { api } from "./api.js";
 import { toast, extractUrl } from "./util.js";
+import { IMPORT_HASH_PREFIX, decodeImportPayload } from "./importer.js";
 import * as library from "./views/library.js";
 import * as week from "./views/week.js";
 import * as grocery from "./views/grocery.js";
@@ -14,7 +15,10 @@ const viewEl = document.getElementById("view");
 const titleEl = document.getElementById("page-title");
 const actionsEl = document.getElementById("topbar-actions");
 
+const IMPORT_STASH_KEY = "rk_pending_import";
+
 let pendingShare = null;
+let pendingImportRaw = null;
 let currentRender = 0;
 
 function parseHash() {
@@ -90,12 +94,50 @@ function handleEntryParams() {
   }
 }
 
+/**
+ * "Send to Recipes" bookmarklet / Shortcut lands on /#import=<base64url JSON>.
+ * The payload is taken out of the URL bar immediately and stashed in
+ * sessionStorage so it survives the /login.html round trip (api() redirects on
+ * 401 and login.html comes back to "/"). It is consumed once, after the session
+ * check, by takeStashedImport().
+ */
+function stashImportHash() {
+  if (!location.hash.startsWith(IMPORT_HASH_PREFIX)) return;
+  pendingImportRaw = location.hash.slice(IMPORT_HASH_PREFIX.length);
+  try {
+    sessionStorage.setItem(IMPORT_STASH_KEY, pendingImportRaw);
+  } catch {}
+  history.replaceState(null, "", "/#library");
+}
+
+function takeStashedImport() {
+  let raw = pendingImportRaw;
+  pendingImportRaw = null;
+  try {
+    raw = raw || sessionStorage.getItem(IMPORT_STASH_KEY);
+    sessionStorage.removeItem(IMPORT_STASH_KEY);
+  } catch {}
+  if (!raw) return null;
+  try {
+    return decodeImportPayload(raw);
+  } catch {
+    toast("Could not read the recipe data sent from your browser. Try the bookmarklet again.", "error", 6000);
+    return null;
+  }
+}
+
 async function start() {
+  stashImportHash();
   handleEntryParams();
   try {
     await api("/api/session"); // redirects to /login.html on 401
   } catch {
     return;
+  }
+  const imported = takeStashedImport();
+  if (imported) {
+    pendingShare = { import: imported };
+    history.replaceState(null, "", "/#library");
   }
   window.addEventListener("hashchange", route);
   await route();

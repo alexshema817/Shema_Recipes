@@ -117,18 +117,23 @@ export function extractJsonLdBlocks(html) {
   const re = /<script\b[^>]*type\s*=\s*["']?\s*application\/ld\+json\s*["']?[^>]*>([\s\S]*?)<\/script\s*>/gi;
   let m;
   while ((m = re.exec(html))) {
-    let raw = m[1].trim();
-    raw = raw
-      .replace(/^<!--/, "")
-      .replace(/-->$/, "")
-      .replace(/^\/\*\s*<!\[CDATA\[\s*\*\//, "")
-      .replace(/\/\*\s*\]\]>\s*\*\/$/, "")
-      .trim();
-    if (!raw) continue;
-    const parsed = tryParseJson(raw);
+    const parsed = parseJsonLdText(m[1]);
     if (parsed !== undefined) blocks.push(parsed);
   }
   return blocks;
+}
+
+/** Parses the text content of one ld+json script (tolerates HTML comment / CDATA wrappers). Returns undefined when unparseable. */
+export function parseJsonLdText(text) {
+  const raw = String(text ?? "")
+    .trim()
+    .replace(/^<!--/, "")
+    .replace(/-->$/, "")
+    .replace(/^\/\*\s*<!\[CDATA\[\s*\*\//, "")
+    .replace(/\/\*\s*\]\]>\s*\*\/$/, "")
+    .trim();
+  if (!raw) return undefined;
+  return tryParseJson(raw);
 }
 
 function tryParseJson(raw) {
@@ -289,7 +294,11 @@ function uniqueTags(list) {
 
 /** Full JSON-LD pipeline. Returns a recipe or null when the page has no usable Recipe JSON-LD. */
 export function extractRecipeFromHtml(html, sourceUrl = "") {
-  const blocks = extractJsonLdBlocks(html);
+  return extractRecipeFromJsonLd(extractJsonLdBlocks(html), sourceUrl);
+}
+
+/** Same as extractRecipeFromHtml but starts from already parsed JSON-LD blocks (used by the browser importer). */
+export function extractRecipeFromJsonLd(blocks, sourceUrl = "") {
   const nodes = findRecipeNodes(blocks);
   if (!nodes.length) return null;
   // Prefer the node with the most ingredients.

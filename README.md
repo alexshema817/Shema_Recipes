@@ -34,6 +34,7 @@ Checks:
 ```bash
 npm run check          # imports every function/lib module (syntax + exports)
 npm run test:jsonld    # parses real recipe pages with the JSON-LD extractor
+npm run test:import    # browser importer: bookmarklet/Shortcut output, payload codec, /api/parse-import logic
 npm run icons          # regenerates public/icons/*.png
 ```
 
@@ -103,7 +104,7 @@ Checkout always happens in the Kroger app or on kroger.com.
   goes through the AI path.
 - Some sites (Allrecipes, Serious Eats, Budget Bytes and other Cloudflare-protected
   sites) answer server-side fetches with a bot challenge (HTTP 403). The app
-  reports this clearly; use "Paste text" for those recipes.
+  reports this clearly; use "Paste text" or the browser importer below for those.
 - "Build Grocery List" (`/api/build-list` + `/api/build-list-background`) scales
   the flagged recipes, asks Claude to merge/convert/group them, filters pantry
   staples, and saves `grocery-list`.
@@ -129,6 +130,30 @@ compare and sets an HttpOnly, SameSite=Lax (Secure on https) cookie containing a
 HMAC-SHA256 signed token valid for 30 days. Five failed logins within 15 minutes
 lock login for 15 minutes (tracked in Blobs `login-attempts`). Every function
 except `/api/login` and `/api/kroger/callback` returns 401 without a valid session.
+
+## Browser importer ("Send to Recipes")
+
+For sites that block server-side fetches, Settings -> "Import from any recipe
+site" offers a bookmarklet and an iOS Shortcut script. Both come from one source,
+`public/js/importer.js` (`APP_ORIGIN` there is the app URL to open). On the recipe
+page, in the user's own browser, the script collects every
+`<script type="application/ld+json">` that mentions `Recipe` (up to ~60k chars)
+or, failing that, the page's readable text (`[itemtype*=Recipe]`, `article`,
+`main`, then `body`; up to ~12k chars), and opens
+`https://<site>/#import=<base64url UTF-8 JSON { v, url, title, jsonld, text }>`.
+The bookmarklet navigates with `location.href`; the Shortcut variant calls
+`completion(url)` so an "Open URLs" action can open it.
+
+On load, `app.js` moves the `#import=` payload out of the URL into
+`sessionStorage` (so it survives the login redirect), then posts it to
+`POST /api/parse-import`. That endpoint (`netlify/lib/import.mjs`) rejects
+payloads over 100k chars, runs the ld+json through the same JSON-LD extractor and
+`validateRecipe` as `/api/parse` (images dropped, `sourceUrl` = the page URL),
+and answers `{ status: "done", method: "jsonld", recipe }`. With no usable
+JSON-LD and at least 200 chars of text it creates a `parse-recipe` job exactly
+like the paste-text path (so it counts against `AI_DAILY_LIMIT`); otherwise it
+returns a 422 asking for "Paste text". `npm run test:import` covers the logic
+without network or Blobs.
 
 ## Share target
 

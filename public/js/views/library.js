@@ -111,6 +111,11 @@ async function toggleWeek(id, button) {
 // ---------------------------------------------------------------------------
 
 export function openAddDialog(ctx, prefill = {}) {
+  if (prefill.import) {
+    // Sent by the "Send to Recipes" bookmarklet / Shortcut: the page data is already here.
+    parseAndReview(ctx, { import: prefill.import });
+    return;
+  }
   if (prefill.url) {
     // Shared from the phone: parse immediately, no dialog needed.
     parseAndReview(ctx, { url: prefill.url });
@@ -158,10 +163,21 @@ export function openAddDialog(ctx, prefill = {}) {
   });
 }
 
-async function parseAndReview(ctx, payload) {
-  const busy = showBusy(payload.url ? "Fetching the page..." : "Reading your text...");
+function hostOf(url) {
   try {
-    const res = await api("/api/parse", { method: "POST", body: payload });
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+}
+
+async function parseAndReview(ctx, payload) {
+  const imp = payload.import;
+  const busy = showBusy(imp ? `Importing${hostOf(imp.url) ? ` from ${hostOf(imp.url)}` : ""}...` : payload.url ? "Fetching the page..." : "Reading your text...");
+  try {
+    const res = imp
+      ? await api("/api/parse-import", { method: "POST", body: { url: imp.url, title: imp.title, jsonld: imp.jsonld, text: imp.text } })
+      : await api("/api/parse", { method: "POST", body: payload });
     let recipe;
     let method = res.method;
     if (res.status === "done") {
@@ -181,10 +197,20 @@ async function parseAndReview(ctx, payload) {
     openRecipeEditor(ctx, { recipe, source: method, isNew: true });
   } catch (err) {
     busy.close();
+    const blocked = /blocks automated access|HTTP 403/i.test(err.message || "");
     openDialog({
       title: "Could not parse that",
-      body: h("div", {}, h("p", { class: "error" }, err.message), h("p", { class: "muted small" }, "Tip: open the page in your browser, copy the recipe text and use \"Paste text\" instead.")),
-      actions: [{ label: "OK", class: "primary", onClick: (close) => close() }],
+      body: h(
+        "div",
+        {},
+        h("p", { class: "error" }, err.message),
+        h("p", { class: "muted small" }, "Tip: open the page in your browser, copy the recipe text and use \"Paste text\" instead."),
+        blocked ? h("p", { class: "muted small" }, "Or send the page straight from your phone's browser: set up \"Import from any recipe site\" in Settings once, then use it on any recipe page.") : null,
+      ),
+      actions: [
+        blocked ? { label: "Open Settings", onClick: (close) => { close(); ctx.navigate("settings"); } } : null,
+        { label: "OK", class: "primary", onClick: (close) => close() },
+      ].filter(Boolean),
     });
   }
 }

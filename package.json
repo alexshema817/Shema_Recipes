@@ -14,7 +14,8 @@
     "test:prefs": "node scripts/test-preferences.mjs",
     "icons": "node scripts/make-icons.mjs",
     "test:unit-price": "node scripts/test-unit-price.mjs",
-    "test:security": "node scripts/test-security.mjs"
+    "test:security": "node scripts/test-security.mjs",
+    "test:import": "node scripts/test-import.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",
