@@ -2,6 +2,7 @@
 // (lib/net-guard.mjs). Run: npm run test:security
 import { seal, open, isSealed } from "../netlify/lib/secret-box.mjs";
 import { isPrivateAddress, assertPublicUrl } from "../netlify/lib/net-guard.mjs";
+import { nextUsage, dayKey, dailyLimit } from "../netlify/lib/ai-quota.mjs";
 
 let passed = 0;
 let failed = 0;
@@ -53,6 +54,20 @@ for (const url of ["http://localhost/", "http://127.0.0.1:9001/2018-06-01/runtim
   check(`rejects ${url}`, await rejects(url), true);
 }
 check("allows a public site", await rejects("https://www.bbcgoodfood.com/"), false);
+
+console.log("\n# daily AI cap");
+check("first call of the day is allowed", nextUsage(null, "2026-10-07", 30), { allowed: true, next: { day: "2026-10-07", count: 1 } });
+check("counts up within the day", nextUsage({ day: "2026-10-07", count: 29 }, "2026-10-07", 30), { allowed: true, next: { day: "2026-10-07", count: 30 } });
+check("blocks at the limit", nextUsage({ day: "2026-10-07", count: 30 }, "2026-10-07", 30).allowed, false);
+check("resets on a new day", nextUsage({ day: "2026-10-07", count: 30 }, "2026-10-08", 30), { allowed: true, next: { day: "2026-10-08", count: 1 } });
+check("limit 0 blocks everything", nextUsage(null, "2026-10-07", 0).allowed, false);
+check("day uses US Eastern (01:00 UTC is still the previous day)", dayKey(new Date("2026-10-08T01:00:00Z")), "2026-10-07");
+delete process.env.AI_DAILY_LIMIT;
+check("default limit is 30", dailyLimit(), 30);
+process.env.AI_DAILY_LIMIT = "10";
+check("AI_DAILY_LIMIT overrides it", dailyLimit(), 10);
+process.env.AI_DAILY_LIMIT = "abc";
+check("invalid AI_DAILY_LIMIT falls back to 30", dailyLimit(), 30);
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

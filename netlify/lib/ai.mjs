@@ -2,6 +2,7 @@
 // No `thinking` param (adaptive by default); depth is controlled with output_config.effort.
 import Anthropic from "@anthropic-ai/sdk";
 import { validateRecipe, parseQuantity } from "./recipe-parser.mjs";
+import { consumeAiQuota } from "./ai-quota.mjs";
 
 export const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-5-5";
 
@@ -49,6 +50,7 @@ export function parseStrictJSON(text) {
 }
 
 async function callJSON({ system, user, schema, effort = "low", maxTokens = 16000 }) {
+  await consumeAiQuota(); // throws once today's AI_DAILY_LIMIT is used up
   const base = {
     model: MODEL,
     max_tokens: maxTokens,

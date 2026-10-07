@@ -55,6 +55,7 @@ Set these in `.env` locally and in the Netlify dashboard
 | `KROGER_REDIRECT_URI` | Must exactly match the redirect URI registered on the Kroger app (see below) |
 | `ANTHROPIC_API_KEY` | Anthropic API key |
 | `ANTHROPIC_MODEL` | Optional, defaults to `claude-sonnet-5-5` |
+| `AI_DAILY_LIMIT` | Optional, max Anthropic API calls per day (US Eastern), default `30`; `0` disables AI |
 | `APP_USERNAME` | Login username |
 | `APP_PASSWORD` | Login password |
 | `SESSION_SECRET` | Random string (32+ chars) used to HMAC-sign the session cookie |

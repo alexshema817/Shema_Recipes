@@ -12,6 +12,7 @@ export const KEYS = {
   KROGER_CLIENT_TOKEN: "kroger-client-token",
   PREFERENCES: "preferences",
   LOGIN_ATTEMPTS: "login-attempts",
+  AI_USAGE: "ai-usage",
   recipe: (id) => `recipes/${id}`,
   job: (id) => `jobs/${id}`,
 };
